@@ -1,0 +1,103 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def init_cond(x):
+    for i in range(0, nx):
+        if 0 <= x[i] <= 3:
+            u_ftbs[i, 0] = x[i]
+            u_laxw[i, 0] = x[i]
+        elif 3 <= x[i] <= 6:
+            u_ftbs[i, 0] = 6 - x[i]
+            u_laxw[i, 0] = 6 - x[i]
+        else:
+            u_ftbs[i, 0] = 0
+            u_laxw[i, 0] = 0
+
+
+def exact(u_exact):
+    for n in range(0, nt - 1):
+        x0 = x - c * n * dt
+        for i in range(0, nx):
+            if 0 <= x0[i] <= 3:
+                u_exact[i, n] = x0[i]
+            elif 3 <= x0[i] <= 6:
+                u_exact[i, n] = 6 - x0[i]
+            else:
+                u_exact[i, n] = 0
+
+
+def ftbs(u_loc):
+    for n in range(0, nt - 1):
+        for i in range(1, nx - 1):
+            u_loc[i, n + 1] = u_loc[i, n] - v * (u_loc[i, n] - u_loc[i - 1, n])
+
+
+def laxw(u_loc):
+    for n in range(0, nt - 1):
+        for i in range(1, nx - 1):
+            u_loc[i, n + 1] = u_loc[i, n] - 0.5 * (c * dt / dx) * (u_loc[i + 1, n] - u_loc[i - 1, n]) + 0.5 * ((c * dt /dx) ** 2) * (u_loc[i + 1, n] - 2 * u_loc[i, n] + u_loc[i - 1, n])
+
+
+# forward time backward space
+def mac(u_bar, u_loc):
+    for n in range(0, nt - 1):
+        for i in range(1, nx - 1):
+            u_bar[i] = u_loc[i, n] - v * (u_loc[i, n] - u_loc[i - 1, n])
+            for i in range(1, nx - 1):
+                u_loc[i, n + 1] = 0.5 * (u_loc[i, n] + u_bar[i]) - 0.5 * v * (u_bar[i + 1] - u_bar[i])
+
+
+# forward time backward space
+# def mac_corrector(u_loc, u_bar):
+#     for n in range(0, nt - 1):
+#         for i in range(1, nx - 1):
+#             u_loc[i, n + 1] = 0.5 * (u_loc[i, n] + u_bar[i, n + 1]) - 0.5 * v * (u_bar[i + 1, n + 1] - u_bar[i, n + 1])
+
+
+c = 0.5
+v = 1.25  # value to change: 0.5, 1.0, and 1.25
+# x values (i)
+xmin = 0
+xmax = 25.0
+nx = int(101.0)  # number of x steps
+dx = 0.25
+# t values (n)
+tmin = 0.0  # seconds
+tmax = 10.0  # seconds
+dt = (v * dx) / c
+nt = int(tmax / dt + 0.5)  # number of time steps
+
+# u = matrix of nx by nt
+# u matrix, first row: initial conditions, second row: delta t, third row: 2 delta t
+u_exact = np.zeros((nx, nt))
+u_ftbs = np.zeros((nx, nt))
+u_laxw = np.zeros((nx, nt))
+u_macc_pred = np.zeros((nx, nt))
+u_macc_corr = np.zeros((nx, nt))
+
+x = np.zeros((nx))
+for i in range(0, nx):
+    x[i] = xmin + i * dx
+
+init_cond(x)
+exact(u_exact)
+ftbs(u_ftbs)
+laxw(u_laxw)
+mac(u_macc_pred, u_macc_corr)
+
+print(u_exact[:, nt - 1])
+print(u_ftbs[:, nt - 1])
+print(u_laxw[:, nt - 1])
+print(u_macc_corr[:, nt - 1])
+
+plt.plot(x, u_exact[:, 5], 'g', label="Exact")
+plt.plot(x, u_laxw[:, 5], 'c', label='Lax Wendroff')
+plt.plot(x, u_ftbs[:, 5], 'b', label='FTBS')
+plt.plot(x, u_macc_corr[:, 5], 'm', label='MacCormack')
+plt.legend(loc="upper right")
+plt.xlabel("x")
+plt.ylabel("u")
+plt.title("t = 10s, CFL = 1.25")
+
+plt.show()
